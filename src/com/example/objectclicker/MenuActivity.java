@@ -10,33 +10,44 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 
+/**
+ * メニュー画面のアクティビティ
+ */
 public class MenuActivity extends Activity {
 	
-	public static final String PREFERENCE_FILE_NAME = "ObjectClickerPreference";
-	public static final String MAX_RECORD_SAVE_KEY = "max.record";
-	
+	/**
+	 * メニュー画面生成時にコールバックされるメソッド
+	 */
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
-		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_menu);
+		super.onCreate(savedInstanceState);     // お決まり
+		setContentView(R.layout.activity_menu); // お決まり
 		
+		// スタートボタンのイベントハンドラを登録する
 		Button startButton = (Button)findViewById(R.id.startButton);
 		
 		startButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
+				// ゲーム画面（GameActivity）を呼び出す
 				Intent intent = new Intent(MenuActivity.this, GameActivity.class);
 				startActivity(intent);
 			}
 		});
 	}
 	
+	/**
+	 * メニュー画面が再表示されたときにコールバックされるメソッド
+	 */
 	@Override
 	protected void onResume() {
-		super.onResume();
+		super.onResume(); // お決まり
+		
+		// 最高記録をプリファレンスから取得し、画面に設定する
+		SharedPreferences preference = getSharedPreferences(Constant.PREFERENCE_FILE_NAME, MODE_PRIVATE);
+		int maxRecord = preference.getInt(Constant.MAX_RECORD_SAVE_KEY, 0);
+		
 		TextView maxRecordText = (TextView)findViewById(R.id.maxRecordText);
-		SharedPreferences preference = getSharedPreferences(PREFERENCE_FILE_NAME, MODE_PRIVATE);
-		int maxRecord = preference.getInt(MAX_RECORD_SAVE_KEY, 0);
 		maxRecordText.setText(String.valueOf(maxRecord));
 	}
 

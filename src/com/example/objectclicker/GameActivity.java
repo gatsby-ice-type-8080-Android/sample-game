@@ -6,13 +6,16 @@ import android.content.DialogInterface;
 import android.content.SharedPreferences;
 import android.content.DialogInterface.OnClickListener;
 import android.content.SharedPreferences.Editor;
+import android.content.res.Resources;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.ViewGroup;
 
+/**
+ * ゲーム画面のアクティビティ
+ */
 public class GameActivity extends Activity implements GameFinishListener {
 	
-//	private static final long GAME_TIME = 5;
 	private Game game;
 	
 	@Override
@@ -22,47 +25,71 @@ public class GameActivity extends Activity implements GameFinishListener {
 		
 		final ViewGroup base = (ViewGroup)findViewById(R.id.gamePanel);
 		
-		this.game = new Game(this, base);
+		// ゲームオブジェクトを生成して、ゲームを開始する
+		this.game = new Game();
+		this.game.setContext(this);
+		this.game.setViewBase(base);
 		this.game.setGameFinishListtener(this);
+		
 		this.game.start();
 	}
 	
+	/**
+	 * 画面が非表示になったときにコールバックされるメソッド
+	 */
 	@Override
 	protected void onPause() {
-		super.onPause();
+		super.onPause(); // お決まり
+		
+		// ゲームを終了する
 		this.game.stop();
 	}
 	
 	private Handler handler = new Handler();
 	
 	/**
-	 * ゲームを終了する
+	 * ゲーム終了時にコールバックされるメソッド
 	 */
 	@Override
 	public void finishGame(final Game game) {
-		final int point = game.getPoint();
-		handler.post(new Runnable() {
+		// 得点を取得する
+		final int score = game.getScore();
+		
+		// ゲーム結果をダイアログで表示する（別スレッドからコールバックされるので、 Handler を使用する）
+		this.handler.post(new Runnable() {
 			@Override
 			public void run() {
+				// ダイアログの生成
 				Builder dialog = new Builder(GameActivity.this);
-				dialog.setTitle("ゲーム終了です");
-				dialog.setMessage("スコア：" + point);
-				dialog.setPositiveButton("OK", new OnClickListener() {
+				
+				// タイトル設定
+				dialog.setTitle(R.string.game_is_finished);
+				
+				// メッセージ設定
+				Resources res = getResources();
+				dialog.setMessage(res.getString(R.string.score) + " : " + score);
+				
+				// ボタンの配置と、そのクリックハンドラの設定
+				dialog.setPositiveButton(R.string.ok, new OnClickListener() {
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
-						finish();
+						finish(); // アクティビティを終了する（= 画面の非表示）
 					}
 				});
-				System.out.println("dialog show");
+				
+				// ダイアログを表示する
 				dialog.show();
 			}
 		});
-		SharedPreferences preference = getSharedPreferences(MenuActivity.PREFERENCE_FILE_NAME, MODE_PRIVATE);
-		int currentMaxRecord = preference.getInt(MenuActivity.MAX_RECORD_SAVE_KEY, 0);
 		
-		if (currentMaxRecord < point) {
+		// プリファレンスにゲーム結果を保存する
+		SharedPreferences preference = getSharedPreferences(Constant.PREFERENCE_FILE_NAME, MODE_PRIVATE);
+		int currentMaxRecord = preference.getInt(Constant.MAX_RECORD_SAVE_KEY, 0);
+		
+		if (currentMaxRecord < score) {
+			// 最高得点を超えている場合のみ保存
 			Editor editor = preference.edit();
-			editor.putInt(MenuActivity.MAX_RECORD_SAVE_KEY, point);
+			editor.putInt(Constant.MAX_RECORD_SAVE_KEY, score);
 			editor.commit();
 		}
 	}

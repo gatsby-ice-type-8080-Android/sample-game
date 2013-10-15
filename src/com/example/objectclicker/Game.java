@@ -19,19 +19,14 @@ public class Game implements BallTouchEventListener {
 	
 	private GameFinishListener listener;
 	private Context context;
-	private ViewGroup base;
+	private ViewGroup viewBase;
 	
-	public Game(Context context, ViewGroup base) {
-		this.context = context;
-		this.base = base;
-	}
-	
-	private int point;
+	private int score;
 	
 	@Override
 	public void touch(Ball ball) {
-		this.point += ball.getPoint();
-		Log.v("oc", "point = " + this.point);
+		this.score += ball.getPoint();
+		Log.v("oc", "score = " + this.score);
 	}
 
 	public void setGameFinishListtener(GameActivity listener) {
@@ -65,7 +60,7 @@ public class Game implements BallTouchEventListener {
 					if (totalBallNum < MAX_BALL_NUM) {
 						if ((cnt % 30) == 0) {
 							int n = rand.nextInt(5) + 1;
-							Set<Ball> newBallSet = BallFactory.createBalls(n, context, base, handler, Game.this);
+							Set<Ball> newBallSet = BallFactory.createBalls(n, context, viewBase, handler, Game.this);
 							ballSet.addAll(newBallSet);
 							totalBallNum += n;
 						}
@@ -108,7 +103,15 @@ public class Game implements BallTouchEventListener {
 		this.threadContinue = false;
 	}
 
-	public int getPoint() {
-		return this.point;
+	public int getScore() {
+		return this.score;
+	}
+
+	public void setContext(Context cotnext) {
+		this.context = cotnext;
+	}
+
+	public void setViewBase(ViewGroup viewBase) {
+		this.viewBase = viewBase;
 	}
 }

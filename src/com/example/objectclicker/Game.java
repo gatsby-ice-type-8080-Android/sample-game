@@ -1,117 +1,196 @@
 package com.example.objectclicker;
 
-import java.util.Date;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Random;
 import java.util.Set;
 
-import android.content.Context;
+import android.app.Activity;
 import android.os.Handler;
 import android.util.Log;
 import android.view.ViewGroup;
 
-import com.example.objectclicker.ball.Ball;
-import com.example.objectclicker.ball.BallFactory;
-import com.example.objectclicker.ball.BallTouchEventListener;
-
+/**
+ * ゲームを制御するクラス
+ */
 public class Game implements BallTouchEventListener {
-	
-	private GameFinishListener listener;
-	private Context context;
-	private ViewGroup viewBase;
-	
-	private int score;
-	
-	@Override
-	public void touch(Ball ball) {
-		this.score += ball.getPoint();
-		Log.v("oc", "score = " + this.score);
-	}
 
-	public void setGameFinishListtener(GameActivity listener) {
-		this.listener = listener;
-	}
+    /**ボールの最大生成数*/
+    private static final int MAX_BALL_NUM = 24;
+    /**ゲーム終了を通知するリスナ*/
+    private GameFinishListener listener;
+    /**ゲーム画面のアクティビティ*/
+    private Activity activity;
+    /**ボールを表示する View*/
+    private ViewGroup viewBase;
+    
+    /**ゲームのスコア*/
+    private int score;
+    /**ゲームを継続するかどうかを判定するかのフラグ*/
+    private boolean threadContinue;
+    /**別スレッドから View を操作するためのハンドラ*/
+    private Handler handler;
+    /**ウィンドウの高さ（ピクセル）*/
+    private int windowHeight;
+    /**ウィンドウの幅（ピクセル）*/
+    private int windowWidth;
+    /**ボールのファクトリ*/
+    private BallFactory ballFactory;
+    /**現在落下中のボールを保持するセット*/
+    private Set<Ball> activeBallSet;
+    
+    /**
+     * ゲーム開始前の初期化処理
+     */
+    private void init() {
+        this.handler = new Handler();
+        this.ballFactory = new BallFactory(this.activity, this.windowWidth, this);
+        this.threadContinue = true;
+        this.activeBallSet = Collections.synchronizedSet(new HashSet<Ball>()); // ボールクリック時に別スレッドから操作される可能性あり
+    }
 
-	private static final int MAX_BALL_NUM = 20;
-	private boolean threadContinue = true;
-	
-	public void start() {
-		Log.v("oc", "Game#start() is called");
-		final Random rand = new Random(new Date().getTime());
-		final Handler handler = new Handler();
-		
-		new Thread() {
-			@Override
-			public void run() {
-				Set<Ball> ballSet = new HashSet<Ball>();
-				int totalBallNum = 0;
-				int fps = 30;
-				int cnt = 0;
+    /**
+     * ゲームを開始する
+     */
+    public void start() {
+        Log.v("oc", "Game#start() is called");
+        this.init();
+        
+        new Thread() { // アニメーションを開始する
+            @Override
+            public void run() {
+                
+                int ballNum = 0;
 
-				try {
-					Thread.sleep(3000);
-				} catch (InterruptedException e1) {
-					e1.printStackTrace();
-				}
-				
-				while (threadContinue) {
-					// ボールの生成
-					if (totalBallNum < MAX_BALL_NUM) {
-						if ((cnt % 30) == 0) {
-							int n = rand.nextInt(5) + 1;
-							Set<Ball> newBallSet = BallFactory.createBalls(n, context, viewBase, handler, Game.this);
-							ballSet.addAll(newBallSet);
-							totalBallNum += n;
-						}
-					}
-					
-					// ボールの移動
-					Iterator<Ball> ite = ballSet.iterator();
-					while (ite.hasNext()) {
-						Ball ball = ite.next();
-						if (ball.fall()) {
-							ite.remove();
-						}
-					}
-					
-					Log.v("oc", "totalBallNum = " + totalBallNum + ", ballSet.Size = " + ballSet.size());
-					
-					// 終了条件判定
-					if (MAX_BALL_NUM <= totalBallNum && ballSet.isEmpty()) {
-						threadContinue = false;
-						listener.finishGame(Game.this);
-					}
-					
-					try {
-						Thread.sleep(fps);
-						cnt++;
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
-					
-					if (1800 < cnt) {
-						Log.e("oc", "infinity loop!!");
-					}
-				}
-			}
-		}.start();
-	}
-	
-	public void stop() {
-		Log.v("oc", "Game#stop() is called");
-		this.threadContinue = false;
-	}
+                try {
+                    while (threadContinue) {
+                        // ボールの生成
+                        if (ballNum < MAX_BALL_NUM) {
+                            activeBallSet.add(newBall());
+                            ballNum++;
+                        }
+                        
+                        // ボールの落下
+                        moveBalls(activeBallSet);
+                        
+                        // 終了判定
+                        if (activeBallSet.isEmpty()) {
+                            threadContinue = false;
+                        }
+                        
+                        Thread.sleep(33); // 30fps
+                    }
+                    
+                    if (activeBallSet.isEmpty()) { // 戻るボタンなどで中断された場合は空でない可能性がある
+                        // ゲーム終了をリスナに通知する
+                        listener.finishGame(Game.this);
+                    }
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }.start();
+    }
+    
+    /**
+     * 新しいボールを生成する
+     * @return 新しく生成されたボール
+     */
+    private Ball newBall() {
+        // ランダムな位置（画面上部）にボールを生成する
+        final Ball ball = this.ballFactory.createRandomPositionBall();
+        
+        this.handler.post(new Runnable() {
+            @Override
+            public void run() {
+                // View にボールを追加する
+                ball.appendTo(viewBase);
+            }
+        });
+        
+        return ball;
+    }
 
-	public int getScore() {
-		return this.score;
-	}
+    /**
+     * ボールを移動する
+     * <p>
+     * 移動した結果、ボールがウィンドウの外に達した場合、そのボールは引数のセットから削除される。
+     * 
+     * @param ballSet 移動させるボールのセット
+     */
+    private void moveBalls(final Set<Ball> ballSet) {
+        this.handler.post(new Runnable() {
+            @Override
+            public void run() {
+                synchronized (ballSet) { // JavaDoc 参照 [http://docs.oracle.com/javase/jp/6/api/java/util/Collections.html#synchronizedSet%28java.util.Set%29]
+                    Iterator<Ball> ite = ballSet.iterator();
+                    
+                    while (ite.hasNext()) {
+                        Ball ball = ite.next();
+                        
+                        // 落下
+                        ball.fall();
+                        
+                        // 画面外に移動した場合は削除
+                        if (windowHeight < ball.getY()) {
+                            ball.removeFrom(viewBase);
+                            ite.remove();
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    /**
+     * ボールをクリックしたときにコールバックされるメソッド
+     * @param ball クリックされたボール
+     */
+    @Override
+    public void touch(Ball ball) {
+        // スコアを加算
+        this.score += ball.getPoint();
+        
+        // クリックされたボールを削除
+        ball.removeFrom(this.viewBase);
+        this.activeBallSet.remove(ball);
+        
+        Log.v("oc", "score = " + this.score);
+    }
 
-	public void setContext(Context cotnext) {
-		this.context = cotnext;
-	}
+    /**
+     * ゲームを中断します。
+     */
+    public void stop() {
+        Log.v("oc", "Game#stop() is called");
+        this.threadContinue = false;
+    }
 
-	public void setViewBase(ViewGroup viewBase) {
-		this.viewBase = viewBase;
-	}
+    /**
+     * このゲームのスコアを取得します。
+     * @return このゲームのスコア
+     */
+    public int getScore() {
+        return this.score;
+    }
+
+    public void setGameFinishListtener(GameActivity listener) {
+        this.listener = listener;
+    }
+
+    public void setActivity(Activity activity) {
+        this.activity = activity;
+    }
+
+    public void setViewBase(ViewGroup viewBase) {
+        this.viewBase = viewBase;
+    }
+
+    public void setWindowWidth(int windowWidth) {
+        this.windowWidth = windowWidth;
+    }
+
+    public void setWindowHeight(int windowHeight) {
+        this.windowHeight = windowHeight;
+    }
 }

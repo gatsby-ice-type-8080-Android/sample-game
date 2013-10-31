@@ -51,6 +51,6 @@ public enum BallSpec {
      * @return “¾“_
      */
     public int getPoint() {
-        return point;
+        return this.point;
     }
 }

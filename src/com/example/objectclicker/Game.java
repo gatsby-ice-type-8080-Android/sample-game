@@ -26,7 +26,7 @@ public class Game implements BallTouchEventListener {
     
     /**ゲームのスコア*/
     private int score;
-    /**ゲームを継続するかどうかを判定するかのフラグ*/
+    /**ゲームを継続するかどうかを判定するフラグ。true の場合、ゲームは継続される。*/
     private boolean threadContinue;
     /**別スレッドから View を操作するためのハンドラ*/
     private Handler handler;
@@ -63,27 +63,27 @@ public class Game implements BallTouchEventListener {
                 int ballNum = 0;
 
                 try {
-                    while (threadContinue) {
+                    while (Game.this.threadContinue) {
                         // ボールの生成
                         if (ballNum < MAX_BALL_NUM) {
-                            activeBallSet.add(newBall());
+                            Game.this.activeBallSet.add(Game.this.newBall());
                             ballNum++;
                         }
                         
                         // ボールの落下
-                        moveBalls(activeBallSet);
+                        moveBalls();
                         
                         // 終了判定
-                        if (activeBallSet.isEmpty()) {
-                            threadContinue = false;
+                        if (Game.this.activeBallSet.isEmpty()) {
+                            Game.this.threadContinue = false;
                         }
                         
                         Thread.sleep(33); // 30fps
                     }
                     
-                    if (activeBallSet.isEmpty()) { // 戻るボタンなどで中断された場合は空でない可能性がある
+                    if (Game.this.activeBallSet.isEmpty()) { // 戻るボタンなどで中断された場合は空でない可能性がある
                         // ゲーム終了をリスナに通知する
-                        listener.finishGame(Game.this);
+                        Game.this.listener.finishGame(Game.this);
                     }
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
@@ -118,12 +118,12 @@ public class Game implements BallTouchEventListener {
      * 
      * @param ballSet 移動させるボールのセット
      */
-    private void moveBalls(final Set<Ball> ballSet) {
+    private void moveBalls() {
         this.handler.post(new Runnable() {
             @Override
             public void run() {
-                synchronized (ballSet) { // JavaDoc 参照 [http://docs.oracle.com/javase/jp/6/api/java/util/Collections.html#synchronizedSet%28java.util.Set%29]
-                    Iterator<Ball> ite = ballSet.iterator();
+                synchronized (Game.this.activeBallSet) { // JavaDoc 参照 [http://docs.oracle.com/javase/jp/6/api/java/util/Collections.html#synchronizedSet%28java.util.Set%29]
+                    Iterator<Ball> ite = Game.this.activeBallSet.iterator();
                     
                     while (ite.hasNext()) {
                         Ball ball = ite.next();
@@ -132,8 +132,8 @@ public class Game implements BallTouchEventListener {
                         ball.fall();
                         
                         // 画面外に移動した場合は削除
-                        if (windowHeight < ball.getY()) {
-                            ball.removeFrom(viewBase);
+                        if (Game.this.windowHeight < ball.getY()) {
+                            ball.removeFrom(Game.this.viewBase);
                             ite.remove();
                         }
                     }

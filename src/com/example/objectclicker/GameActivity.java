@@ -24,11 +24,11 @@ public class GameActivity extends Activity implements GameFinishListener {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_game);
+        this.setContentView(R.layout.activity_game);
         
-        final ViewGroup base = (ViewGroup)findViewById(R.id.gamePanel);
+        final ViewGroup base = (ViewGroup)this.findViewById(R.id.gamePanel);
         
-        WindowManager wm = getWindowManager();
+        WindowManager wm = this.getWindowManager();
         Display display = wm.getDefaultDisplay();
         DisplayMetrics metrics = new DisplayMetrics();
         display.getMetrics(metrics);
@@ -77,14 +77,14 @@ public class GameActivity extends Activity implements GameFinishListener {
                 dialog.setTitle(R.string.game_is_finished);
                 
                 // メッセージ設定
-                Resources res = getResources();
+                Resources res = GameActivity.this.getResources();
                 dialog.setMessage(res.getString(R.string.score) + " : " + score);
                 
                 // ボタンの配置と、そのクリックハンドラの設定
                 dialog.setPositiveButton(R.string.ok, new OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        finish(); // アクティビティを終了する（= 画面の非表示）
+                        GameActivity.this.finish(); // アクティビティを終了する（= 画面の非表示）
                     }
                 });
                 
@@ -94,7 +94,7 @@ public class GameActivity extends Activity implements GameFinishListener {
         });
         
         // プリファレンスにゲーム結果を保存する
-        SharedPreferences preference = getSharedPreferences(Constant.PREFERENCE_FILE_NAME, MODE_PRIVATE);
+        SharedPreferences preference = this.getSharedPreferences(Constant.PREFERENCE_FILE_NAME, MODE_PRIVATE);
         int currentMaxRecord = preference.getInt(Constant.MAX_RECORD_SAVE_KEY, 0);
         
         if (currentMaxRecord < score) {
